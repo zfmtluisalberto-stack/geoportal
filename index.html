@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Geoportal · Municipio de La Paz, BCS</title>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --ocean:     #0a3d5f;
+            --deep:      #061f31;
+            --tide:      #1b7fa8;
+            --sand:      #e8d5a3;
+            --coral:     #e07b54;
+            --mangrove:  #2d6a4f;
+            --sky:       #cde9f6;
+            --panel:     rgba(6, 31, 49, 0.93);
+            --panel-border: rgba(27, 127, 168, 0.35);
+            --text:      #eaf4fb;
+            --muted:     #7fb9d4;
+            --accent:    #f4a147;
+            --radius:    10px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            width: 100%; height: 100%;
+            font-family: 'DM Sans', sans-serif;
+            background: var(--deep);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        /* ───── HEADER ───── */
+        #header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 56px;
+            z-index: 2000;
+            background: linear-gradient(90deg, var(--deep) 0%, var(--ocean) 60%, #0f5278 100%);
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            padding: 0 18px;
+            gap: 14px;
+            backdrop-filter: blur(8px);
+        }
+
+        #header .logo-mark {
+            width: 34px; height: 34px;
+            background: var(--tide);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 0 0 3px rgba(27,127,168,0.3);
+        }
+        #header .logo-mark i { font-size: 16px; color: #fff; }
+
+        #header .title-block { flex: 1; }
+        #header .title-block h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--text);
+            line-height: 1;
+        }
+        #header .title-block p {
+            font-size: 10.5px;
+            color: var(--muted);
+            margin-top: 2px;
+            font-weight: 300;
+            letter-spacing: .04em;
+        }
+
+        #header .header-pills {
+            display: flex; gap: 6px;
+        }
+        .hpill {
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--panel-border);
+            color: var(--muted);
+            cursor: default;
+            transition: all .2s;
+        }
+        .hpill.active, .hpill:hover {
+            background: var(--tide);
+            color: #fff;
+            border-color: var(--tide);
+        }
+
+        /* coord bar */
+        #coord-bar {
+            font-size: 10px;
+            color: var(--muted);
+            background: rgba(6,31,49,0.7);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 3px 10px;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        /* ───── MAP ───── */
+        #map {
+            position: fixed;
+            top: 56px; left: 0; right: 0; bottom: 32px;
+            z-index: 1;
+        }
+
+        /* ───── SIDEBAR ───── */
+        #sidebar {
+            position: fixed;
+            top: 56px; left: 0; bottom: 32px;
+            width: 280px;
+            z-index: 1000;
+            background: var(--panel);
+            border-right: 1px solid var(--panel-border);
+            display: flex; flex-direction: column;
+            transition: transform .3s cubic-bezier(.4,0,.2,1);
+            backdrop-filter: blur(10px);
+        }
+        #sidebar.collapsed { transform: translateX(-280px); }
+
+        #sidebar-toggle {
+            position: fixed;
+            top: 70px;
+            left: 280px;
+            z-index: 1001;
+            width: 28px; height: 60px;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-left: none;
+            border-radius: 0 var(--radius) var(--radius) 0;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--muted);
+            transition: all .3s cubic-bezier(.4,0,.2,1);
+        }
+        #sidebar-toggle:hover { color: var(--text); background: rgba(27,127,168,.3); }
+        #sidebar.collapsed + #sidebar-toggle { left: 0; }
+
+        /* sidebar header */
+        .sb-header {
+            padding: 16px 16px 12px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+        .sb-header h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        /* search box */
+        .search-wrap {
+            position: relative;
+        }
+        .search-wrap i {
+            position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+            color: var(--muted); font-size: 12px;
+        }
+        #geo-search {
+            width: 100%;
+            padding: 8px 10px 8px 30px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 12px;
+            font-family: 'DM Sans', sans-serif;
+            outline: none;
+            transition: border .2s;
+        }
+        #geo-search::placeholder,
+        #field-search::placeholder { color: var(--muted); }
+        #geo-search:focus,
+        #field-search:focus { border-color: var(--tide); }
+
+        .search-info {
+            margin-top: 8px;
+            font-size: 10px;
+            color: var(--muted);
+            padding-left: 30px;
+            line-height: 1.3;
+        }
+
+        .search-results {
+            margin-top: 10px;
+            max-height: 220px;
+            overflow-y: auto;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 8px 0;
+        }
+        .search-result-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: background .15s, color .15s;
+            font-size: 12px;
+            color: var(--text);
+        }
+        .search-result-item:hover,
+        .search-result-item.active {
+            background: rgba(27,127,168,.14);
+            color: #fff;
+        }
+        .search-result-title {
+            font-weight: 600;
+            margin-bottom: 3px;
+            line-height: 1.2;
+        }
+        .search-result-meta {
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.3;
+        }
+
+        /* layers section */
+        .sb-section { flex: 1; overflow-y: auto; padding: 12px 0; }
+        .sb-section::-webkit-scrollbar { width: 4px; }
+        .sb-section::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 4px; }
+
+        .layer-group { margin-bottom: 4px; }
+        .layer-group-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 16px;
+            cursor: pointer;
+            font-size: 10.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: var(--muted);
+            transition: background .15s;
+            user-select: none;
+        }
+        .layer-group-header:hover { background: rgba(255,255,255,.04); }
+        .layer-group-header .chevron { margin-left: auto; font-size: 9px; transition: transform .2s; }
+        .layer-group-header.open .chevron { transform: rotate(90deg); }
+
+        .layer-items { display: none; }
+        .layer-items.visible { display: block; }
+
+        .layer-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 6px 16px 6px 28px;
+            cursor: pointer;
+            transition: background .15s;
+            border-radius: 0;
+        }
+        .layer-item:hover { background: rgba(27,127,168,.1); }
+        .layer-item.active { background: rgba(27,127,168,.15); }
+
+        /* toggle pill */
+        .toggle {
+            width: 30px; height: 16px;
+            background: rgba(255,255,255,0.12);
+            border-radius: 8px;
+            position: relative;
+            flex-shrink: 0;
+            transition: background .2s;
+            cursor: pointer;
+        }
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 12px; height: 12px;
+            background: var(--muted);
+            border-radius: 50%;
+            top: 2px; left: 2px;
+            transition: all .2s;
+        }
+        .toggle.on { background: var(--tide); }
+        .toggle.on::after { left: 16px; background: #fff; }
+
+        .layer-swatch {
+            width: 12px; height: 12px;
+            border-radius: 2px;
+            flex-shrink: 0;
+            border: 1px solid rgba(255,255,255,.15);
+        }
+
+        .layer-name {
+            font-size: 12px;
+            color: var(--text);
+            flex: 1;
+            line-height: 1.3;
+        }
+
+        /* opacity row */
+        .opacity-row {
+            display: none;
+            padding: 4px 16px 8px 38px;
+            gap: 8px;
+            align-items: center;
+        }
+        .opacity-row.visible { display: flex; }
+        .opacity-row label { font-size: 10px; color: var(--muted); white-space: nowrap; }
+        .opacity-row input[type=range] {
+            flex: 1;
+            accent-color: var(--tide);
+            height: 3px;
+            cursor: pointer;
+        }
+
+        /* ───── BASEMAP SWITCHER ───── */
+        #basemap-panel {
+            padding: 10px 16px 14px;
+            border-top: 1px solid var(--panel-border);
+        }
+        #basemap-panel label {
+            font-size: 10px; text-transform: uppercase;
+            letter-spacing: .08em; color: var(--muted);
+            display: block; margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .basemap-grid { display: flex; gap: 6px; }
+        .bm-btn {
+            flex: 1;
+            padding: 6px 4px;
+            font-size: 10px;
+            font-family: 'DM Sans', sans-serif;
+            text-align: center;
+            background: rgba(255,255,255,.06);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all .18s;
+            line-height: 1.2;
+        }
+        .bm-btn i { display: block; font-size: 14px; margin-bottom: 3px; }
+        .bm-btn.active, .bm-btn:hover {
+            background: var(--tide);
+            border-color: var(--tide);
+            color: #fff;
+        }
+
+        /* ───── MAP CONTROLS (right side) ───── */
+        .leaflet-top.leaflet-left { top: 8px !important; left: 8px !important; }
+        .leaflet-control-zoom a,
+        .leaflet-control a {
+            background: var(--panel) !important;
+            color: var(--text) !important;
+            border-color: var(--panel-border) !important;
+        }
+        .leaflet-control-zoom a:hover { background: var(--tide) !important; }
+        .leaflet-control-attribution {
+            background: rgba(6,31,49,0.75) !important;
+            color: var(--muted) !important;
+            font-size: 9px !important;
+        }
+        .leaflet-control-attribution a { color: var(--tide) !important; }
+        .leaflet-popup-content-wrapper {
+            background: var(--panel) !important;
+            border: 1px solid var(--panel-border) !important;
+            border-radius: var(--radius) !important;
+            color: var(--text) !important;
+            backdrop-filter: blur(10px);
+        }
+        .leaflet-popup-tip { background: var(--panel) !important; }
+        .leaflet-popup-content table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        .leaflet-popup-content table td {
+            padding: 3px 6px;
+            border-bottom: 1px solid var(--panel-border);
+            color: var(--text);
+            word-break: break-word;
+        }
+        .leaflet-popup-content table tr:last-child td { border-bottom: none; }
+        .leaflet-popup-close-button { color: var(--muted) !important; }
+        .leaflet-popup-close-button:hover { color: var(--text) !important; }
+
+        /* ───── INFO PANEL (right) ───── */
+        #info-panel {
+            position: fixed;
+            top: 70px; right: 10px;
+            width: 280px;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius);
+            z-index: 900;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            max-height: 70vh;
+        }
+        #info-panel .ip-header {
+            padding: 10px 14px;
+            background: rgba(27,127,168,.15);
+            border-bottom: 1px solid var(--panel-border);
+            font-family: 'Syne', sans-serif;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--accent);
+            display: flex; gap: 6px; align-items: center; flex-shrink: 0;
+        }
+        #info-panel .close-info {
+            background: none; border: none; color: var(--muted);
+            cursor: pointer; margin-left: auto; font-size: 12px;
+        }
+        #info-panel .close-info:hover { color: var(--text); }
+        #info-stats { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+        #selected-feature-info { padding: 12px 14px; flex: 1; overflow-y: auto; display: none; }
+        #selected-feature-info.visible { display: block; }
+        #selected-feature-info h4 { font-family: 'Syne', sans-serif; font-size: 11px; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; }
+        #selected-feature-info .feature-attr { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; border-bottom: 1px solid var(--panel-border); padding-bottom: 8px; }
+        #selected-feature-info .feature-attr:last-child { border-bottom: none; }
+        #selected-feature-info .attr-key { font-size: 9px; color: var(--muted); text-transform: uppercase; }
+        #selected-feature-info .attr-val { font-size: 11px; color: var(--text); word-break: break-word; }
+        .stat-row { display: flex; align-items: baseline; gap: 6px; }
+        .stat-label { font-size: 10px; color: var(--muted); flex: 1; }
+        .stat-val { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--accent); }
+
+        /* ───── STATUS BAR ───── */
+        #statusbar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0; height: 32px;
+            background: var(--deep);
+            border-top: 1px solid var(--panel-border);
+            z-index: 2000;
+            display: flex; align-items: center;
+            padding: 0 14px;
+            gap: 20px;
+            font-size: 10px;
+            color: var(--muted);
+        }
+        #statusbar .sb-item { display: flex; align-items: center; gap: 5px; }
+        #statusbar .dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--mangrove);
+            box-shadow: 0 0 6px rgba(45,106,79,.9);
+        }
+        #location-status {
+            font-variant-numeric: tabular-nums;
+            color: var(--text);
+            max-width: 240px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #zoom-display { font-variant-numeric: tabular-nums; color: var(--text); }
+
+        /* ───── SCALE BAR ───── */
+        .leaflet-control-scale-line {
+            background: rgba(6,31,49,0.8) !important;
+            border-color: var(--tide) !important;
+            color: var(--text) !important;
+            font-size: 9px !important;
+        }
+
+        /* ───── LEGEND MODAL ───── */
+        #legend-modal {
+            display: none;
+            position: fixed;
+            inset: 0; z-index: 3000;
+            background: rgba(0,0,0,.6);
+            backdrop-filter: blur(4px);
+            align-items: center; justify-content: center;
+        }
+        #legend-modal.open { display: flex; }
+        #legend-box {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 14px;
+            padding: 24px;
+            width: min(560px, 92vw);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        #legend-box h3 {
+            font-family: 'Syne', sans-serif;
+            font-size: 13px; text-transform: uppercase;
+            letter-spacing: .08em; color: var(--accent);
+            margin-bottom: 16px;
+        }
+        .legend-section { margin-bottom: 16px; }
+        .legend-section h4 { font-size: 11px; color: var(--muted); margin-bottom: 8px; font-weight: 500; }
+        .legend-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; font-size: 12px; }
+        .legend-swatch { width: 18px; height: 12px; border-radius: 2px; flex-shrink: 0; border: 1px solid rgba(255,255,255,.2); }
+        .legend-line { width: 24px; height: 3px; flex-shrink: 0; }
+        .close-modal {
+            float: right; background: none; border: none; color: var(--muted);
+            font-size: 18px; cursor: pointer; margin-top: -4px;
+        }
+        .close-modal:hover { color: var(--text); }
+
+        /* ───── RESPONSIVE ───── */
+        @media (max-width: 640px) {
+            #sidebar { width: 260px; }
+            #sidebar.collapsed + #sidebar-toggle { left: 0; }
+            #info-panel { display: none; }
+            #header .header-pills { display: none; }
+            #coord-bar { display: none; }
+        }
+
+        /* login overlay */
+        #login-overlay {
+            position: fixed; inset: 0; z-index: 10000;
+            background: linear-gradient(135deg, rgba(6,31,49,.96), rgba(10,61,95,.96));
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+            transition: opacity .3s ease, visibility .3s ease;
+        }
+        #login-overlay.hidden {
+            opacity: 0; visibility: hidden; pointer-events: none;
+        }
+        #login-box {
+            width: min(420px, 100%);
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.35);
+        }
+        #login-box h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+        #login-box p {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .login-field {
+            display: flex; flex-direction: column; gap: 6px;
+            margin-bottom: 12px;
+        }
+        .login-field label {
+            font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+        }
+        .login-field input {
+            width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border);
+            background: rgba(255,255,255,.06); color: var(--text); font-size: 13px;
+        }
+        .login-field input:focus { outline: none; border-color: var(--tide); }
+        #login-button {
+            width: 100%; border: none; border-radius: 8px; padding: 10px 12px; margin-top: 6px;
+            background: linear-gradient(90deg, var(--tide), var(--accent)); color: #fff; font-weight: 700; cursor: pointer;
+        }
+        #login-message {
+            margin-top: 10px; font-size: 11px; color: #ffb4b4; min-height: 14px;
+        }
+
+        /* loading overlay */
+        #loading {
+            position: fixed; inset: 0; z-index: 9999;
+            background: var(--deep);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 16px;
+            transition: opacity .5s;
+        }
+        #loading.done { opacity: 0; pointer-events: none; }
+        .loader-logo {
+            font-family: 'Syne', sans-serif;
+            font-size: 22px; font-weight: 800;
+            color: var(--text); letter-spacing: .04em;
+        }
+        .loader-logo span { color: var(--tide); }
+        .loader-bar {
+            width: 200px; height: 3px;
+            background: rgba(255,255,255,.1);
+            border-radius: 3px; overflow: hidden;
+        }
+        .loader-bar-inner {
+            height: 100%;
+            background: linear-gradient(90deg, var(--tide), var(--accent));
+            border-radius: 3px;
+            animation: load 1.8s ease-in-out forwards;
+        }
+        @keyframes load { from { width: 0; } to { width: 100%; } }
+        .loader-sub { font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-overlay">
+    <div id="login-box">
+        <h2>Acceso al Geoportal</h2>
+        <p>Ingresa tus credenciales para continuar.</p>
+        <form id="login-form">
+            <div class="login-field">
+                <label for="login-user">Usuario</label>
+                <input id="login-user" type="text" autocomplete="username" required>
+            </div>
+            <div class="login-field">
+                <label for="login-pass">Contraseña</label>
+                <input id="login-pass" type="password" autocomplete="current-password" required>
+            </div>
+            <button id="login-button" type="submit">Ingresar</button>
+            <div id="login-message"></div>
+        </form>
+    </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading">
+    <div class="loader-logo">Geo<span>Portal</span></div>
+    <div class="loader-bar"><div class="loader-bar-inner"></div></div>
+    <div class="loader-sub">Municipio de La Paz, BCS</div>
+</div>
+
+<!-- HEADER -->
+<header id="header">
+    <div class="logo-mark"><i class="fa-solid fa-map-location-dot"></i></div>
+    <div class="title-block">
+        <h1>GeoPortal La Paz</h1>
+        <p>Zona Federal Marítimo Terrestre · Municipio de La Paz, BCS</p>
+    </div>
+    <div id="coord-bar">— lat, lng —</div>
+    <div class="header-pills">
+        <div class="hpill active">Capas</div>
+        <div class="hpill" onclick="document.getElementById('legend-modal').classList.toggle('open')">Leyenda</div>
+    </div>
+</header>
+
+<!-- SIDEBAR -->
+<aside id="sidebar">
+    <div class="sb-header">
+        <h2><i class="fa-solid fa-layer-group" style="margin-right:6px;font-size:9px;"></i>Capas Temáticas</h2>
+        <div class="search-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="occupation-search" type="text" placeholder="Buscar ocupaciones…">
+        </div>
+        <div id="occupation-search-info" class="search-info">Busca en ocupaciones irregulares</div>
+        <div id="occupation-search-results" class="search-results"></div>
+        <div class="search-wrap" style="margin-top:10px;">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="concession-search" type="text" placeholder="Buscar concesiones…">
+        </div>
+        <div id="concession-search-info" class="search-info">Busca en concesiones (Pacífico y Golfo)</div>
+        <div id="concession-search-results" class="search-results"></div>
+    </div>
+
+    <div class="sb-section" id="layers-panel">
+
+        <!-- Group: ZFMT -->
+        <div class="layer-group">
+            <div class="layer-group-header open" onclick="toggleGroup(this)">
+                <i class="fa-solid fa-anchor" style="font-size:10px;color:var(--accent)"></i>
+                ZFMT · Zona Federal
+                <i class="fa-solid fa-chevron-right chevron"></i>
+            </div>
+            <div class="layer-items visible">
+                <div class="layer-item active" id="li-delimvigente">
+                    <div class="toggle on" onclick="toggleLayer(this,'delimvigente')"></div>
+                    <div class="layer-swatch" style="background:rgba(132,0,168,0.7)"></div>
+                    <div class="layer-name">Delimitación Vigente DGZFMTAC</div>
+                </div>
+                <div class="layer-item active" id="li-oi">
+                    <div class="toggle on" onclick="toggleLayer(this,'oi')"></div>
+                    <div class="layer-swatch" style="background:rgba(255,127,0,0.7)"></div>
+                    <div class="layer-name">Ocupaciones Irregulares</div>
+                </div>
+                <div class="layer-item active" id="li-pacifico">
+                    <div class="toggle on" onclick="toggleLayer(this,'pacifico')"></div>
+                    <div class="layer-swatch" style="background:rgba(0,150,200,0.7)"></div>
+                    <div class="layer-name">Concesiones Pacífico</div>
+                </div>
+                <div class="layer-item active" id="li-golfo">
+                    <div class="toggle on" onclick="toggleLayer(this,'golfo')"></div>
+                    <div class="layer-swatch" style="background:rgba(0,92,230,0.7)"></div>
+                    <div class="layer-name">Concesiones Golfo de California</div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end sb-section -->
+
+    <!-- Basemap switcher -->
+    <div id="basemap-panel">
+        <label><i class="fa-solid fa-globe" style="margin-right:4px"></i>Mapa base</label>
+        <div class="basemap-grid">
+            <div class="bm-btn active" onclick="switchBasemap('satellite',this)">
+                <i class="fa-solid fa-satellite"></i>Satélite
+            </div>
+            <div class="bm-btn" onclick="switchBasemap('osm',this)">
+                <i class="fa-solid fa-map"></i>OSM
+            </div>
+            <div class="bm-btn" onclick="switchBasemap('topo',this)">
+                <i class="fa-solid fa-mountain"></i>Topo
+            </div>
+        </div>
+    </div>
+</aside>
+
+<div id="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('collapsed');updateToggleIcon()">
+    <i class="fa-solid fa-chevron-left" id="toggle-icon"></i>
+</div>
+
+<!-- MAP -->
+<div id="map"></div>
+
+<!-- INFO PANEL -->
+<div id="info-panel">
+    <div class="ip-header">
+        <i class="fa-solid fa-circle-info"></i>Información
+        <button class="close-info" onclick="clearFeatureSelection()" title="Limpiar selección"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="info-stats">
+        <div class="stat-row">
+            <span class="stat-label">Municipio</span>
+            <span class="stat-val" style="font-size:11px">La Paz, BCS</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Capas activas</span>
+            <span class="stat-val" id="active-count">9</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Zoom actual</span>
+            <span class="stat-val" id="zoom-info">8</span>
+        </div>
+    </div>
+    <div id="selected-feature-info"></div>
+</div>
+
+<!-- LEGEND MODAL -->
+<div id="legend-modal">
+    <div id="legend-box">
+        <button class="close-modal" onclick="document.getElementById('legend-modal').classList.remove('open')">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3><i class="fa-solid fa-palette" style="margin-right:8px"></i>Leyenda Temática</h3>
+
+        <div class="legend-section">
+            <h4>Delimitación de Dunas</h4>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(230,214,110,0.8)"></div>Área inundación</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(217,209,118,0.8)"></div>Duna embrionaria</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(208,194,111,0.8)"></div>Duna frontal</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(200,189,109,0.8)"></div>Intermareal</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(186,172,89,0.8)"></div>Matorral en suelo arenoso</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(175,162,84,0.8)"></div>Playa (Zona de pioneras)</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(168,168,0,1)"></div>Transición duna-matorral</div>
+        </div>
+
+        <div class="legend-section">
+            <h4>Delimitación Vigente DGZFMTAC</h4>
+            <div class="legend-row"><div class="legend-line" style="background:rgba(0,112,255,1)"></div>PM / PME / EM</div>
+            <div class="legend-row"><div class="legend-line" style="background:rgba(106,210,110,1)"></div>Recinto Portuario</div>
+            <div class="legend-row"><div class="legend-line" style="background:rgba(115,38,0,1)"></div>TGM</div>
+            <div class="legend-row"><div class="legend-line" style="background:rgba(132,0,168,1)"></div>ZF / ZFE</div>
+        </div>
+
+        <div class="legend-section">
+            <h4>Conservación</h4>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(164,113,88,0.8)"></div>Áreas Naturales Protegidas</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(0,180,130,0.8)"></div>Sitios Ramsar</div>
+        </div>
+
+        <div class="legend-section">
+            <h4>Zonificación Estratégica</h4>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(0,125,0,0.15);border:1px solid rgba(0,125,0,.9)"></div>Cuadrícula estratégica</div>
+        </div>
+    </div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="statusbar">
+    <div class="sb-item"><div class="dot"></div> Sistema activo</div>
+    <div class="sb-item"><i class="fa-solid fa-location-dot" style="font-size:9px"></i><span id="coord-display">— , —</span></div>
+    <div class="sb-item"><i class="fa-solid fa-location-crosshairs" style="font-size:9px"></i><span id="location-status">Solicitando ubicación…</span></div>
+    <div class="sb-item"><i class="fa-solid fa-magnifying-glass" style="font-size:9px"></i>Zoom: <span id="zoom-display">—</span></div>
+    <div style="margin-left:auto;font-size:9px">qgis2web · Leaflet · QGIS · © OpenStreetMap</div>
+</div>
+
+<!-- LEAFLET -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="auth-config.js"></script>
+
+<!-- DATA LAYERS (relative paths — place data/ folder alongside this file) -->
+<script src="data/DelimitacindeDunas_1.js"></script>
+<script src="data/zfmt_concesiones_pacifico_2.js"></script>
+<script src="data/zfmt_concesiones_golfo_de_california_3.js"></script>
+<script src="data/zfmt_oi_mun_lpz_4.js"></script>
+<script src="data/zfmt_delimitacion_vigente_5.js"></script>
+<script src="data/HidrografiaMunicipiodeLaPazBCS_6.js"></script>
+<script src="data/Localidades_7.js"></script>
+<script src="data/RedVial_8.js"></script>
+<script src="data/SitiosRamsar_9.js"></script>
+<script src="data/reasNaturalesProtegidas_10.js"></script>
+<script src="data/ZonificacinCuadricula_Estrategica_11.js"></script>
+
+<script>
+/* ─── LOGIN ─── */
+var loginOverlay = document.getElementById('login-overlay');
+var loginForm = document.getElementById('login-form');
+var loginMessage = document.getElementById('login-message');
+
+function getStoredSession() {
+    try {
+        return JSON.parse(sessionStorage.getItem('geoportal-auth') || 'null');
+    } catch (e) {
+        return null;
+    }
+}
+
+function showLoginError(message) {
+    if (loginMessage) {
+        loginMessage.textContent = message;
+    }
+}
+
+function unlockGeoportal(userData) {
+    if (loginOverlay) {
+        loginOverlay.classList.add('hidden');
+    }
+    try {
+        sessionStorage.setItem('geoportal-auth', JSON.stringify({
+            user: userData.user,
+            role: userData.role,
+            expiresAt: Date.now() + 1000 * 60 * 60 * 8
+        }));
+    } catch (e) {}
+}
+
+function requireLogin() {
+    var session = getStoredSession();
+    if (session && session.expiresAt && session.expiresAt > Date.now()) {
+        unlockGeoportal({ user: session.user, role: session.role });
+        return;
+    }
+    try { sessionStorage.removeItem('geoportal-auth'); } catch (e) {}
+    if (loginOverlay) {
+        loginOverlay.classList.remove('hidden');
+    }
+}
+
+if (loginForm) {
+    loginForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var userInput = document.getElementById('login-user').value.trim();
+        var passInput = document.getElementById('login-pass').value;
+
+        fetch(window.AUTH_API_URL || 'https://tu-auth-service.example.com/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user: userInput, password: passInput })
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('Credenciales inválidas');
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            showLoginError('');
+            unlockGeoportal({ user: userInput, role: data.role });
+        })
+        .catch(function() {
+            showLoginError('Usuario o contraseña incorrectos.');
+        });
+    });
+}
+
+requireLogin();
+
+/* ─── LOADING ─── */
+window.addEventListener('load', () => {
+    setTimeout(() => document.getElementById('loading').classList.add('done'), 1900);
+});
+
+/* ─── MAP INIT ─── */
+var map = L.map('map', {
+    zoomControl: true,
+    maxZoom: 28, minZoom: 4,
+    attributionControl: true
+}).fitBounds([[23.055,-111.810],[25.028,-109.314]]);
+
+map.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
+
+/* ─── REAL-TIME USER LOCATION ─── */
+var userLocationLayer = L.layerGroup().addTo(map);
+var userMarker = null;
+var userCircle = null;
+var locationInitialized = false;
+
+function showUserLocation(position) {
+    var latlng = L.latLng(position.coords.latitude, position.coords.longitude);
+    var accuracy = Math.max(position.coords.accuracy || 20, 15);
+
+    if (!userMarker) {
+        userMarker = L.circleMarker(latlng, {
+            radius: 8,
+            color: '#ffffff',
+            weight: 2,
+            fillColor: '#f4a147',
+            fillOpacity: 0.95
+        }).addTo(userLocationLayer);
+    } else {
+        userMarker.setLatLng(latlng);
+    }
+
+    if (!userCircle) {
+        userCircle = L.circle(latlng, {
+            radius: accuracy,
+            color: '#1b7fa8',
+            weight: 1,
+            fillColor: '#1b7fa8',
+            fillOpacity: 0.18
+        }).addTo(userLocationLayer);
+    } else {
+        userCircle.setLatLng(latlng).setRadius(accuracy);
+    }
+
+    if (!locationInitialized) {
+        map.setView(latlng, Math.max(map.getZoom(), 16));
+        locationInitialized = true;
+    }
+
+    var locationText = latlng.lat.toFixed(5) + ', ' + latlng.lng.toFixed(5);
+    document.getElementById('location-status').textContent = locationText + ' · ±' + Math.round(accuracy) + ' m';
+}
+
+function handleLocationError(error) {
+    var message = 'Ubicación no disponible';
+    if (error && error.code === 1) {
+        message = 'Permiso de ubicación denegado';
+    } else if (error && error.code === 2) {
+        message = 'No se pudo obtener la ubicación';
+    } else if (error && error.code === 3) {
+        message = 'Tiempo de espera agotado';
+    }
+    document.getElementById('location-status').textContent = message;
+}
+
+function startRealTimeLocation() {
+    if (!navigator.geolocation) {
+        handleLocationError();
+        return;
+    }
+    document.getElementById('location-status').textContent = 'Solicitando ubicación…';
+    map.locate({
+        watch: true,
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 20000
+    });
+}
+
+map.on('locationfound', function(e) {
+    showUserLocation(e);
+});
+
+map.on('locationerror', function(e) {
+    handleLocationError(e);
+});
+
+var locateControl = L.control({ position: 'topleft' });
+locateControl.onAdd = function() {
+    var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+    var link = L.DomUtil.create('a', '', div);
+    link.href = '#';
+    link.title = 'Mi ubicación en tiempo real';
+    link.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i>';
+    L.DomEvent.on(link, 'click', L.DomEvent.stopPropagation)
+        .on(link, 'click', L.DomEvent.preventDefault)
+        .on(link, 'click', function() {
+            startRealTimeLocation();
+        });
+    return div;
+};
+locateControl.addTo(map);
+
+startRealTimeLocation();
+
+/* ─── BASEMAPS ─── */
+var basemaps = {
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Esri World Imagery', maxZoom: 20
+    }),
+    osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap', maxZoom: 19
+    }),
+    topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenTopoMap', maxZoom: 17
+    })
+};
+basemaps.satellite.addTo(map);
+var currentBasemap = 'satellite';
+
+function switchBasemap(name, btn) {
+    map.removeLayer(basemaps[currentBasemap]);
+    basemaps[name].addTo(map);
+    currentBasemap = name;
+    document.querySelectorAll('.bm-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+/* ─── POPUP HELPER ─── */
+function makePopup(props, fields) {
+    var rows = fields
+        .filter(f => props[f] != null && String(props[f]).trim() !== '')
+        .map(f => '<tr><td style="color:var(--muted);padding-right:8px;white-space:nowrap">' + f + '</td><td>' + props[f] + '</td></tr>')
+        .join('');
+    return rows ? '<table>' + rows + '</table>' : '<em style="color:var(--muted);font-size:11px">Sin atributos</em>';
+}
+
+/* ─── LAYER DEFINITIONS ─── */
+var layers = {};
+var activeCount = 0;
+
+function safeGeoJson(varName, opts) {
+    try {
+        var data = window[varName];
+        if (!data) return null;
+        return L.geoJson(data, opts);
+    } catch(e) { return null; }
+}
+
+// Dunas
+layers.dunas = safeGeoJson('json_DelimitacindeDunas_1', {
+    style: function(f) {
+        var c = {'Ärea inundación':'rgba(230,214,110,0.8)','Duna embrionaria':'rgba(217,209,118,0.8)','Duna frontal':'rgba(208,194,111,0.8)','Intermareal':'rgba(200,189,109,0.8)','Matorral en suelo arenoso':'rgba(186,172,89,0.8)','NA':'rgba(179,165,85,0.8)','Playa (Zona de pioneras)':'rgba(175,162,84,0.8)','Transición duna-matorral':'rgba(168,168,0,1)'};
+        return {color:'#232323',weight:1,fillColor:c[f.properties.Zona]||'rgba(200,190,110,0.7)',fillOpacity:.85};
+    },
+    onEachFeature: function(f,l){ l.bindPopup(makePopup(f.properties,['Zona','Sitio','developer'])); }
+});
+
+// Pacífico concesiones
+layers.pacifico = safeGeoJson('json_zfmt_concesiones_pacifico_2', {
+    style: {color:'#0096c8',weight:1.5,fillColor:'rgba(0,150,200,0.25)',fillOpacity:1},
+    onEachFeature: function(f,l){ l.bindPopup(makePopup(f.properties,['Concesion_','Status','Nombre_del','Representa'])); }
+});
+
+// Golfo concesiones
+layers.golfo = safeGeoJson('json_zfmt_concesiones_golfo_de_california_3', {
+    style: {color:'#005ce6',weight:1.5,fillColor:'rgba(0,92,230,0.2)',fillOpacity:1},
+    onEachFeature: function(f,l){ l.bindPopup(makePopup(f.properties,['Concesion_','Status','Nombre_del'])); }
+});
+
+// OI
+layers.oi = safeGeoJson('json_zfmt_oi_mun_lpz_4', {
+    style: {color:'#ff7f00',weight:1,fillColor:'rgba(255,127,0,0.3)',fillOpacity:1},
+    onEachFeature: function(f,l){ l.bindPopup(makePopup(f.properties,['Clave','Status'])); }
+});
+
+// Delimitación vigente
+layers.delimvigente = safeGeoJson('json_zfmt_delimitacion_vigente_5', {
+    style: function(f) {
+        var col = {'AMBIENTES COSTEROS':'#8400a8','EM':'#0070ff','PM':'#0070ff','PME':'#0070ff','RECINTO PORTUARIO':'#6ad26e','TGM':'#732600','ZF':'#8400a8','ZFE':'#8400a8'};
+        return {color:col[f.properties.ZONA_DESC]||'#8400a8',weight:1.5,fillOpacity:0};
+    },
+    onEachFeature: function(f,l){ l.bindPopup(makePopup(f.properties,['ZONA_DESC','CLAVE','NOMBRE'])); }
+});
+
+// Hidrografía
+layers.hidro = safeGeoJson('json_HidrografiaMunicipiodeLaPazBCS_6', {
+    style: {color:'#1b7fa8',weight:1.5,fillOpacity:0},
+    onEachFeature: function(f,l){ l.bindPopup(makePopup(f.properties,['TIPO','CONDICION','LENGTHM'])); }
+});
+
+// Localidades
+layers.localidades = safeGeoJson('json_Localidades_7', {
+    pointToLayer: function(f,ll) {
+        return L.circleMarker(ll, {radius:5,color:'#ffc832',weight:1.5,fillColor:'rgba(255,200,50,0.9)',fillOpacity:.9});
+    },
+    onEachFeature: function(f,l){ l.bindPopup(makePopup(f.properties,['NOMGEO','CVE_LOC','POBTOT'])); }
+});
+
+// Red Vial
+layers.vial = safeGeoJson('json_RedVial_8', {
+    style: {color:'#888',weight:1,fillOpacity:0},
+    onEachFeature: function(f,l){ l.bindPopup(makePopup(f.properties,['NOMBRE','TIPO','ESTADO'])); }
+});
+
+// Sitios Ramsar
+layers.ramsar = safeGeoJson('json_SitiosRamsar_9', {
+    style: {color:'#00b482',weight:1.5,fillColor:'rgba(0,180,130,0.25)',fillOpacity:1},
+    onEachFeature: function(f,l){ l.bindPopup(makePopup(f.properties,['Name','Area_ha'])); }
+});
+
+// ANP
+layers.anp = safeGeoJson('json_reasNaturalesProtegidas_10', {
+    style: {color:'#232323',weight:1,fillColor:'rgba(164,113,88,0.7)',fillOpacity:1},
+    onEachFeature: function(f,l){ l.bindPopup(makePopup(f.properties,['NOMBRE','CATEGORIA','SUPERFICIE'])); }
+});
+
+// Cuadrícula
+layers.cuadricula = safeGeoJson('json_ZonificacinCuadricula_Estrategica_11', {
+    style: {color:'rgba(0,125,0,1)',weight:1,fillColor:'rgba(0,125,0,0.15)',fillOpacity:1},
+    onEachFeature: function(f,l){ l.bindPopup(makePopup(f.properties,['clave','id'])); }
+});
+
+/* ─── ADD LAYERS TO MAP (order = z-index) ─── */
+var order = ['anp','ramsar','cuadricula','dunas','delimvigente','hidro','vial','oi','golfo','pacifico','localidades'];
+order.forEach(function(k) {
+    if (layers[k]) { layers[k].addTo(map); activeCount++; }
+});
+document.getElementById('active-count').textContent = activeCount;
+
+/* ─── TOGGLE LAYERS ─── */
+function toggleLayer(toggleEl, key) {
+    toggleEl.classList.toggle('on');
+    if (!layers[key]) return;
+    if (toggleEl.classList.contains('on')) {
+        layers[key].addTo(map);
+        activeCount++;
+    } else {
+        map.removeLayer(layers[key]);
+        activeCount--;
+    }
+    document.getElementById('active-count').textContent = activeCount;
+}
+
+function setOpacity(key, val) {
+    if (!layers[key]) return;
+    layers[key].setStyle({ fillOpacity: val/100, opacity: val/100 });
+}
+
+/* ─── GROUP COLLAPSE ─── */
+function toggleGroup(header) {
+    header.classList.toggle('open');
+    var items = header.nextElementSibling;
+    items.classList.toggle('visible');
+}
+
+/* ─── SIDEBAR TOGGLE ─── */
+function updateToggleIcon() {
+    var sb = document.getElementById('sidebar');
+    var icon = document.getElementById('toggle-icon');
+    icon.className = sb.classList.contains('collapsed')
+        ? 'fa-solid fa-chevron-right'
+        : 'fa-solid fa-chevron-left';
+}
+
+
+/* ─── UTM CONVERSION ─── */
+function latLngToUTM(lat, lng) {
+    var k0 = 0.9996;
+    var a = 6378137.0;
+    var eccSquared = 0.00669438;
+    var eccPrimeSquared = eccSquared / (1 - eccSquared);
+    
+    var zone = Math.floor((lng + 180) / 6) + 1;
+    var zoneCM = (zone - 1) * 6 - 180 + 3;
+    
+    var latRad = lat * Math.PI / 180;
+    var lngRad = lng * Math.PI / 180;
+    var zoneCMRad = zoneCM * Math.PI / 180;
+    
+    var N = a / Math.sqrt(1 - eccSquared * Math.sin(latRad) * Math.sin(latRad));
+    var T = Math.tan(latRad) * Math.tan(latRad);
+    var C = eccPrimeSquared * Math.cos(latRad) * Math.cos(latRad);
+    var A = Math.cos(latRad) * (lngRad - zoneCMRad);
+    
+    var M = a * ((1 - eccSquared / 4 - 3 * eccSquared * eccSquared / 64 - 5 * eccSquared * eccSquared * eccSquared / 256) * latRad
+        - (3 * eccSquared / 8 + 3 * eccSquared * eccSquared / 32 - 45 * eccSquared * eccSquared * eccSquared / 1024) * Math.sin(2 * latRad)
+        + (15 * eccSquared * eccSquared / 256 - 45 * eccSquared * eccSquared * eccSquared / 1024) * Math.sin(4 * latRad)
+        - (35 * eccSquared * eccSquared * eccSquared / 3072) * Math.sin(6 * latRad));
+    
+    var east = k0 * N * (A + (A * A * A / 6) * (1 - T + C)
+        + (A * A * A * A * A / 120) * (1 - 18 * T + T * T + 72 * C - 58 * eccPrimeSquared)) + 500000;
+    
+    var north = k0 * (M + N * Math.tan(latRad) * (A * A / 2
+        + (A * A * A * A / 24) * (5 - T + 9 * C + 4 * C * C)
+        + (A * A * A * A * A * A / 720) * (61 - 58 * T + T * T + 600 * C - 330 * eccPrimeSquared)));
+    
+    if (lat < 0) north += 10000000;
+    
+    return {
+        zone: zone,
+        east: Math.round(east),
+        north: Math.round(north)
+    };
+}
+
+/* ─── COORDINATES ─── */
+map.on('mousemove', function(e) {
+    var utm = latLngToUTM(e.latlng.lat, e.latlng.lng);
+    var txt = utm.zone + ' ' + utm.east + ' ' + utm.north;
+    document.getElementById('coord-bar').textContent = txt;
+    document.getElementById('coord-display').textContent = txt;
+});
+
+/* ─── ZOOM DISPLAY ─── */
+function updateZoom() {
+    var z = map.getZoom();
+    document.getElementById('zoom-display').textContent = z;
+    document.getElementById('zoom-info').textContent = z;
+}
+map.on('zoomend', updateZoom);
+updateZoom();
+
+/* ─── OCCUPATION SEARCH INDEX ─── */
+var occupationSearchFeatures = [];
+
+function buildOccupationIndex() {
+    occupationSearchFeatures = [];
+    ['oi'].forEach(function(key) {
+        if (!layers[key]) return;
+        layers[key].eachLayer(function(layer) {
+            var props = (layer.feature && layer.feature.properties) ? layer.feature.properties : {};
+            var searchable = Object.keys(props)
+                .map(function(field) {
+                    var value = props[field] != null ? String(props[field]) : '';
+                    return (field + ' ' + value).toLowerCase();
+                })
+                .join(' | ');
+            occupationSearchFeatures.push({ key: key, layer: layer, searchable: searchable, properties: props });
+        });
+    });
+}
+
+buildOccupationIndex();
+
+function zoomToOccupationResult(result) {
+    if (!result || !result.layer) return;
+    if (map.hasLayer(layers[result.key]) === false) {
+        layers[result.key].addTo(map);
+    }
+    try {
+        var group = L.featureGroup([result.layer]);
+        map.fitBounds(group.getBounds().pad(0.3));
+    } catch (e) {
+        if (result.layer.getLatLng) {
+            map.setView(result.layer.getLatLng(), 13);
+        }
+    }
+    showFeatureInfo(result.layer);
+}
+
+function buildOccupationLabel(props) {
+    return props.Clave || props.Status || 'Ocupación';
+}
+
+function buildOccupationSummary(props) {
+    var lines = [];
+    if (props.Status) lines.push(props.Status);
+    if (props.Clave) lines.push('Clave: ' + props.Clave);
+    return lines.join(' · ');
+}
+
+function renderOccupationSearchResults(results) {
+    var container = document.getElementById('occupation-search-results');
+    container.innerHTML = '';
+    if (!results || !results.length) {
+        return;
+    }
+    var maxResults = 12;
+    results.slice(0, maxResults).forEach(function(item, index) {
+        var props = item.properties;
+        var title = buildOccupationLabel(props);
+        var summary = buildOccupationSummary(props);
+        var resultEl = document.createElement('div');
+        resultEl.className = 'search-result-item';
+        resultEl.setAttribute('data-result-index', index);
+        resultEl.innerHTML = '<div class="search-result-title">' + title + '</div>' +
+            (summary ? '<div class="search-result-meta">' + summary + '</div>' : '');
+        resultEl.addEventListener('click', function() {
+            var active = container.querySelector('.search-result-item.active');
+            if (active) active.classList.remove('active');
+            resultEl.classList.add('active');
+            zoomToOccupationResult(item);
+        });
+        container.appendChild(resultEl);
+    });
+    if (results.length > maxResults) {
+        var moreEl = document.createElement('div');
+        moreEl.className = 'search-result-meta';
+        moreEl.style.padding = '8px 14px 6px';
+        moreEl.textContent = 'Mostrando ' + maxResults + ' de ' + results.length + ' resultados.';
+        container.appendChild(moreEl);
+    }
+}
+
+/* ─── OCCUPATION FIELD SEARCH ─── */
+document.getElementById('occupation-search').addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    var info = document.getElementById('occupation-search-info');
+    var container = document.getElementById('occupation-search-results');
+    if (!q) {
+        info.textContent = 'Busca en ocupaciones irregulares';
+        container.innerHTML = '';
+        return;
+    }
+    var results = occupationSearchFeatures.filter(function(item) {
+        return item.searchable.indexOf(q) !== -1;
+    });
+    info.textContent = results.length
+        ? results.length + ' resultado' + (results.length === 1 ? '' : 's')
+        : 'Sin resultados para "' + this.value + '"';
+    renderOccupationSearchResults(results);
+});
+
+/* ─── CONCESSION SEARCH INDEX ─── */
+var concessionSearchFeatures = [];
+
+function buildConcessionIndex() {
+    concessionSearchFeatures = [];
+    ['pacifico','golfo'].forEach(function(key) {
+        if (!layers[key]) return;
+        layers[key].eachLayer(function(layer) {
+            var props = (layer.feature && layer.feature.properties) ? layer.feature.properties : {};
+            var searchable = Object.keys(props)
+                .map(function(field) {
+                    var value = props[field] != null ? String(props[field]) : '';
+                    return (field + ' ' + value).toLowerCase();
+                })
+                .join(' | ');
+            concessionSearchFeatures.push({ key: key, layer: layer, searchable: searchable, properties: props });
+        });
+    });
+}
+
+buildConcessionIndex();
+
+function zoomToConcessionResult(result) {
+    if (!result || !result.layer) return;
+    if (map.hasLayer(layers[result.key]) === false) {
+        layers[result.key].addTo(map);
+    }
+    try {
+        var group = L.featureGroup([result.layer]);
+        map.fitBounds(group.getBounds().pad(0.3));
+    } catch (e) {
+        if (result.layer.getLatLng) {
+            map.setView(result.layer.getLatLng(), 13);
+        }
+    }
+    showFeatureInfo(result.layer);
+}
+
+function buildConcessionLabel(props) {
+    return props.Concesion_ || props.Concesion || props.Nombre_del || props.Status || 'Concesión';
+}
+
+function buildConcessionSummary(props) {
+    var lines = [];
+    if (props.Nombre_del) lines.push(props.Nombre_del);
+    if (props.Status) lines.push(props.Status);
+    if (props.Concesion_) lines.push('Clave: ' + props.Concesion_);
+    return lines.join(' · ');
+}
+
+function renderConcessionSearchResults(results) {
+    var container = document.getElementById('concession-search-results');
+    container.innerHTML = '';
+    if (!results || !results.length) {
+        return;
+    }
+    var maxResults = 12;
+    results.slice(0, maxResults).forEach(function(item, index) {
+        var props = item.properties;
+        var title = buildConcessionLabel(props);
+        var summary = buildConcessionSummary(props);
+        var resultEl = document.createElement('div');
+        resultEl.className = 'search-result-item';
+        resultEl.setAttribute('data-result-index', index);
+        resultEl.innerHTML = '<div class="search-result-title">' + title + '</div>' +
+            (summary ? '<div class="search-result-meta">' + summary + '</div>' : '');
+        resultEl.addEventListener('click', function() {
+            var active = container.querySelector('.search-result-item.active');
+            if (active) active.classList.remove('active');
+            resultEl.classList.add('active');
+            zoomToConcessionResult(item);
+        });
+        container.appendChild(resultEl);
+    });
+    if (results.length > maxResults) {
+        var moreEl = document.createElement('div');
+        moreEl.className = 'search-result-meta';
+        moreEl.style.padding = '8px 14px 6px';
+        moreEl.textContent = 'Mostrando ' + maxResults + ' de ' + results.length + ' resultados.';
+        container.appendChild(moreEl);
+    }
+}
+
+/* ─── CONCESSION FIELD SEARCH ─── */
+document.getElementById('concession-search').addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    var info = document.getElementById('concession-search-info');
+    var container = document.getElementById('concession-search-results');
+    if (!q) {
+        info.textContent = 'Busca en concesiones (Pacífico y Golfo)';
+        container.innerHTML = '';
+        return;
+    }
+    var results = concessionSearchFeatures.filter(function(item) {
+        return item.searchable.indexOf(q) !== -1;
+    });
+    info.textContent = results.length
+        ? results.length + ' resultado' + (results.length === 1 ? '' : 's')
+        : 'Sin resultados para "' + this.value + '"';
+    renderConcessionSearchResults(results);
+});
+
+/* ─── FEATURE SELECTION & INFO PANEL ─── */
+var selectedFeature = null;
+
+function showFeatureInfo(layer) {
+    if (!layer || !layer.feature) return;
+    var props = layer.feature.properties || {};
+    var infoDiv = document.getElementById('selected-feature-info');
+    var layerName = 'Elemento';
+    
+    // Determine layer name
+    if (props.Concesion_) layerName = 'Concesión';
+    else if (props.Clave) layerName = 'Ocupación Irregular';
+    else if (props.ZONA_DESC) layerName = 'Zona ZFMT';
+    else if (props.NOMGEO) layerName = 'Localidad';
+    
+    var html = '<h4><i class="fa-solid fa-info" style="margin-right:6px;font-size:9px"></i>' + layerName + '</h4>';
+    var propsArray = Object.entries(props);
+    
+    if (propsArray.length === 0) {
+        html += '<div style="color:var(--muted);font-size:10px">Sin atributos</div>';
+    } else {
+        propsArray.forEach(function(entry) {
+            var key = entry[0];
+            var val = entry[1];
+            if (val != null && String(val).trim() !== '') {
+                html += '<div class="feature-attr">' +
+                    '<div class="attr-key">' + key + '</div>' +
+                    '<div class="attr-val">' + val + '</div>' +
+                    '</div>';
+            }
+        });
+    }
+    infoDiv.innerHTML = html;
+    infoDiv.classList.add('visible');
+    selectedFeature = layer;
+}
+
+function clearFeatureSelection() {
+    document.getElementById('selected-feature-info').classList.remove('visible');
+    document.getElementById('selected-feature-info').innerHTML = '';
+    selectedFeature = null;
+}
+
+/* ─── ATTACH CLICK HANDLERS TO LAYERS ─── */
+function attachFeatureClickHandlers(layer) {
+    if (layer.eachLayer) {
+        layer.eachLayer(function(subLayer) {
+            if (subLayer.on) {
+                subLayer.on('click', function() {
+                    showFeatureInfo(subLayer);
+                });
+            }
+        });
+    } else if (layer.on) {
+        layer.on('click', function() {
+            showFeatureInfo(layer);
+        });
+    }
+}
+
+// Attach handlers to all layers
+order.forEach(function(k) {
+    if (layers[k]) { attachFeatureClickHandlers(layers[k]); }
+});
+
+/* ─── SCALE ─── */
+L.control.scale({ position: 'bottomright', metric: true, imperial: false }).addTo(map);
+</script>
+</body>
+</html>

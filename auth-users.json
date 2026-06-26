@@ -1,0 +1,14 @@
+{
+  "users": {
+    "admin": {
+      "role": "Administrador",
+      "salt": "be1546d7454baae66c4683af16064dd1",
+      "hash": "db9658e330b7bd0d3f76c15f6be91ad6ecc18540958e5fc9e6d43b69c8e4f46874fc2424c6bef3c0a95f30989293bb814791bbae1f5e4cb70097a6826c6d08f1"
+    },
+    "operador": {
+      "role": "Operador",
+      "salt": "89703d5eca1569800637e77a1a3cf75d",
+      "hash": "355dfd5778dff12c7d5b30b9e4944a2c4a583bdf9b47a32c412516dcb7b0e21bb607c4d1082cdd4ccdefbe525a7735eef2940474091565c1d63651673340713"
+    }
+  }
+}
