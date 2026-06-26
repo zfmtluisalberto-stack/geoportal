@@ -897,6 +897,7 @@ var userLocationLayer = L.layerGroup().addTo(map);
 var userMarker = null;
 var userCircle = null;
 var locationInitialized = false;
+var locationWatchId = null;
 
 function showUserLocation(position) {
     var latlng = L.latLng(position.coords.latitude, position.coords.longitude);
@@ -949,25 +950,26 @@ function handleLocationError(error) {
 
 function startRealTimeLocation() {
     if (!navigator.geolocation) {
-        handleLocationError();
+        handleLocationError({ code: 2 });
         return;
     }
+
+    if (locationWatchId !== null) {
+        navigator.geolocation.clearWatch(locationWatchId);
+        locationWatchId = null;
+    }
+
     document.getElementById('location-status').textContent = 'Solicitando ubicación…';
-    map.locate({
-        watch: true,
+    locationWatchId = navigator.geolocation.watchPosition(function(position) {
+        showUserLocation(position);
+    }, function(error) {
+        handleLocationError(error);
+    }, {
         enableHighAccuracy: true,
-        maximumAge: 5000,
+        maximumAge: 10000,
         timeout: 20000
     });
 }
-
-map.on('locationfound', function(e) {
-    showUserLocation(e);
-});
-
-map.on('locationerror', function(e) {
-    handleLocationError(e);
-});
 
 var locateControl = L.control({ position: 'topleft' });
 locateControl.onAdd = function() {
