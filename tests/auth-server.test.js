@@ -38,3 +38,26 @@ test('serves the portal HTML at the root URL', async () => {
     server.kill('SIGTERM');
   }
 });
+
+test('auth endpoint accepts the admin credentials', async () => {
+  const server = spawn(process.execPath, ['auth-server.js'], {
+    cwd: path.join(__dirname, '..'),
+    env: { ...process.env, PORT: '3102' },
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+
+  try {
+    await waitForServer('http://127.0.0.1:3102/');
+    const res = await fetch('http://127.0.0.1:3102/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: 'admin', password: 'Geoportal2026' })
+    });
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.ok, true);
+    assert.equal(data.role, 'Administrador');
+  } finally {
+    server.kill('SIGTERM');
+  }
+});

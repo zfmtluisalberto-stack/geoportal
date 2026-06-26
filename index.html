@@ -789,7 +789,7 @@
 
 <!-- LEAFLET -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="auth-config.js"></script>
+<script src="auth-config.js?v=20260625"></script>
 
 <!-- DATA LAYERS (relative paths — place data/ folder alongside this file) -->
 <script src="data/DelimitacindeDunas_1.js"></script>
@@ -871,7 +871,7 @@ if (loginForm) {
             unlockGeoportal({ user: userInput, role: data.role });
         })
         .catch(function() {
-            showLoginError('Usuario o contraseña incorrectos.');
+            showLoginError('Usuario o contraseña incorrectos. Intenta de nuevo o recarga la página con Ctrl+F5.');
         });
     });
 }
