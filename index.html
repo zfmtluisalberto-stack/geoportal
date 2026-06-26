@@ -1051,6 +1051,14 @@ locateControl.onAdd = function() {
             if (userMarker && userCircle) {
                 map.setView(userMarker.getLatLng(), Math.max(map.getZoom(), 16));
             }
+        });
+    return div;
+};
+locateControl.addTo(map);
+
+var basemaps = {
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Esri World Imagery', maxZoom: 20
     }),
     osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap', maxZoom: 19
