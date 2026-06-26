@@ -2,6 +2,7 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { URL } = require('url');
 
 const port = process.env.PORT || 3001;
 const authFile = path.join(__dirname, 'auth-users.json');
@@ -31,13 +32,45 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
+function sendFile(res, filePath, contentType) {
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      sendJson(res, 404, { ok: false, message: 'No encontrado' });
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': 'no-store'
+    });
+    res.end(data);
+  });
+}
+
+const mimeTypes = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2'
+};
+
 const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') {
     sendJson(res, 204, {});
     return;
   }
 
-  if (req.method === 'POST' && req.url === '/login') {
+  const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const pathname = requestUrl.pathname;
+
+  if (req.method === 'POST' && pathname === '/login') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
@@ -54,6 +87,20 @@ const server = http.createServer((req, res) => {
         sendJson(res, 400, { ok: false, message: 'Solicitud inválida' });
       }
     });
+    return;
+  }
+
+  if (pathname === '/') {
+    sendFile(res, path.join(__dirname, 'index.html'), mimeTypes['.html']);
+    return;
+  }
+
+  const safePath = pathname === '/' ? '/' : pathname.replace(/^\/+/, '');
+  const fullPath = path.join(__dirname, safePath);
+  const ext = path.extname(fullPath).toLowerCase();
+
+  if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+    sendFile(res, fullPath, mimeTypes[ext] || 'application/octet-stream');
     return;
   }
 
