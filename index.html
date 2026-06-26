@@ -456,6 +456,24 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .gps-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(27,127,168,0.2);
+            border: 1px solid rgba(27,127,168,0.35);
+            color: var(--text);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+        .gps-pill.active {
+            background: rgba(244,161,71,0.25);
+            border-color: rgba(244,161,71,0.45);
+        }
         #zoom-display { font-variant-numeric: tabular-nums; color: var(--text); }
 
         /* ───── SCALE BAR ───── */
@@ -783,6 +801,7 @@
     <div class="sb-item"><div class="dot"></div> Sistema activo</div>
     <div class="sb-item"><i class="fa-solid fa-location-dot" style="font-size:9px"></i><span id="coord-display">— , —</span></div>
     <div class="sb-item"><i class="fa-solid fa-location-crosshairs" style="font-size:9px"></i><span id="location-status">Solicitando ubicación…</span></div>
+    <div class="sb-item"><span id="gps-pill" class="gps-pill">GPS inactivo</span></div>
     <div class="sb-item"><i class="fa-solid fa-magnifying-glass" style="font-size:9px"></i>Zoom: <span id="zoom-display">—</span></div>
     <div style="margin-left:auto;font-size:9px">qgis2web · Leaflet · QGIS · © OpenStreetMap</div>
 </div>
@@ -898,6 +917,13 @@ var userMarker = null;
 var userCircle = null;
 var locationInitialized = false;
 var locationWatchId = null;
+var gpsPill = document.getElementById('gps-pill');
+
+function updateGpsPill(state, text) {
+    if (!gpsPill) return;
+    gpsPill.textContent = text || state;
+    gpsPill.classList.toggle('active', state === 'activo');
+}
 
 function showUserLocation(position) {
     var latlng = L.latLng(position.coords.latitude, position.coords.longitude);
@@ -934,6 +960,7 @@ function showUserLocation(position) {
 
     var locationText = latlng.lat.toFixed(5) + ', ' + latlng.lng.toFixed(5);
     document.getElementById('location-status').textContent = locationText + ' · ±' + Math.round(accuracy) + ' m';
+    updateGpsPill('activo', 'GPS activo');
 }
 
 function handleLocationError(error) {
@@ -946,6 +973,7 @@ function handleLocationError(error) {
         message = 'Tiempo de espera agotado';
     }
     document.getElementById('location-status').textContent = message;
+    updateGpsPill('inactivo', 'GPS inactivo');
 }
 
 function startRealTimeLocation() {
@@ -960,6 +988,7 @@ function startRealTimeLocation() {
     }
 
     document.getElementById('location-status').textContent = 'Solicitando ubicación…';
+    updateGpsPill('esperando', 'GPS esperando');
     locationWatchId = navigator.geolocation.watchPosition(function(position) {
         showUserLocation(position);
     }, function(error) {
@@ -982,17 +1011,9 @@ locateControl.onAdd = function() {
         .on(link, 'click', L.DomEvent.preventDefault)
         .on(link, 'click', function() {
             startRealTimeLocation();
-        });
-    return div;
-};
-locateControl.addTo(map);
-
-startRealTimeLocation();
-
-/* ─── BASEMAPS ─── */
-var basemaps = {
-    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Esri World Imagery', maxZoom: 20
+            if (userMarker && userCircle) {
+                map.setView(userMarker.getLatLng(), Math.max(map.getZoom(), 16));
+            }
     }),
     osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap', maxZoom: 19
