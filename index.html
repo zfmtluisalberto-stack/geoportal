@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+    <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width,viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Geoportal · Municipio de La Paz, BCS</title>
@@ -38,6 +38,17 @@
             background: var(--deep);
             color: var(--text);
             overflow: hidden;
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+            overscroll-behavior: none;
+        }
+
+        button, input, select, textarea {
+            font: inherit;
+        }
+
+        .leaflet-container {
+            touch-action: manipulation;
         }
 
         /* ───── HEADER ───── */
@@ -522,11 +533,74 @@
 
         /* ───── RESPONSIVE ───── */
         @media (max-width: 640px) {
-            #sidebar { width: 260px; }
-            #sidebar.collapsed + #sidebar-toggle { left: 0; }
-            #info-panel { display: none; }
+            #header {
+                height: 64px;
+                padding: 0 12px;
+                gap: 8px;
+            }
+            #header .logo-mark {
+                width: 32px; height: 32px;
+            }
+            #header .title-block h1 {
+                font-size: 11px;
+                line-height: 1.1;
+            }
+            #header .title-block p {
+                font-size: 9px;
+            }
             #header .header-pills { display: none; }
             #coord-bar { display: none; }
+            #map {
+                top: 64px;
+                bottom: 36px;
+            }
+            #sidebar {
+                width: min(86vw, 320px);
+                max-width: 320px;
+                border-right: 1px solid var(--panel-border);
+            }
+            #sidebar.collapsed { transform: translateX(-100%); }
+            #sidebar-toggle {
+                top: 74px;
+                left: min(86vw, 320px);
+                width: 36px;
+                height: 46px;
+            }
+            #sidebar.collapsed + #sidebar-toggle { left: 0; }
+            #info-panel { display: none; }
+            #statusbar {
+                height: 36px;
+                padding: 0 10px;
+                gap: 10px;
+                font-size: 9px;
+            }
+            #location-status {
+                max-width: 150px;
+            }
+            .leaflet-top.leaflet-left {
+                top: 8px !important;
+                left: 8px !important;
+            }
+            .leaflet-control-zoom a,
+            .leaflet-control a {
+                width: 40px;
+                height: 40px;
+                line-height: 40px;
+                font-size: 18px;
+            }
+            .leaflet-touch .leaflet-bar a {
+                width: 40px;
+                height: 40px;
+                line-height: 40px;
+            }
+            .leaflet-control-attribution {
+                max-width: calc(100vw - 18px);
+                font-size: 8px !important;
+            }
+            #legend-box {
+                width: min(94vw, 560px);
+                padding: 18px;
+            }
         }
 
         /* login overlay */
