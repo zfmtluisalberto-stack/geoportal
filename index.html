@@ -813,6 +813,109 @@
 <!-- LEAFLET -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="auth-config.js?v=20260625"></script>
+<script>
+(function() {
+    function getStoredSession() {
+        try {
+            return JSON.parse(sessionStorage.getItem('geoportal-auth') || 'null');
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function showLoginError(message) {
+        var loginMessage = document.getElementById('login-message');
+        if (loginMessage) {
+            loginMessage.textContent = message;
+        }
+    }
+
+    function setLoginPending(isPending) {
+        var loginButton = document.getElementById('login-button');
+        if (loginButton) {
+            loginButton.disabled = isPending;
+            loginButton.textContent = isPending ? 'Validando…' : 'Ingresar';
+        }
+    }
+
+    function unlockGeoportal(userData) {
+        var loginOverlay = document.getElementById('login-overlay');
+        if (loginOverlay) {
+            loginOverlay.classList.add('hidden');
+        }
+        try {
+            sessionStorage.setItem('geoportal-auth', JSON.stringify({
+                user: userData.user,
+                role: userData.role,
+                expiresAt: Date.now() + 1000 * 60 * 60 * 8
+            }));
+        } catch (e) {}
+    }
+
+    function requireLogin() {
+        var session = getStoredSession();
+        if (session && session.expiresAt && session.expiresAt > Date.now()) {
+            unlockGeoportal({ user: session.user, role: session.role });
+            return;
+        }
+        try { sessionStorage.removeItem('geoportal-auth'); } catch (e) {}
+        var loginOverlay = document.getElementById('login-overlay');
+        if (loginOverlay) {
+            loginOverlay.classList.remove('hidden');
+        }
+    }
+
+    function attachLoginHandler() {
+        var loginForm = document.getElementById('login-form');
+        if (!loginForm) {
+            return;
+        }
+
+        loginForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            var userInput = document.getElementById('login-user').value.trim();
+            var passInput = document.getElementById('login-pass').value;
+            setLoginPending(true);
+            showLoginError('');
+
+            fetch(window.AUTH_API_URL || 'https://tu-auth-service.example.com/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user: userInput, password: passInput })
+            })
+            .then(function(response) {
+                return response.json().then(function(data) {
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Credenciales inválidas');
+                    }
+                    return data;
+                });
+            })
+            .then(function(data) {
+                showLoginError('');
+                unlockGeoportal({ user: userInput, role: data.role });
+            })
+            .catch(function(error) {
+                showLoginError(error.message || 'Usuario o contraseña incorrectos. Intenta de nuevo o recarga la página con Ctrl+F5.');
+            })
+            .finally(function() {
+                setLoginPending(false);
+            });
+        });
+
+        requireLogin();
+    }
+
+    window.unlockGeoportal = unlockGeoportal;
+    window.requireLogin = requireLogin;
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attachLoginHandler, { once: true });
+    } else {
+        attachLoginHandler();
+    }
+})();
+</script>
 
 <!-- DATA LAYERS (relative paths — place data/ folder alongside this file) -->
 <script src="data/DelimitacindeDunas_1.js"></script>
@@ -826,95 +929,6 @@
 <script src="data/SitiosRamsar_9.js"></script>
 <script src="data/reasNaturalesProtegidas_10.js"></script>
 <script src="data/ZonificacinCuadricula_Estrategica_11.js"></script>
-
-<script>
-/* ─── LOGIN ─── */
-var loginOverlay = document.getElementById('login-overlay');
-var loginForm = document.getElementById('login-form');
-var loginMessage = document.getElementById('login-message');
-var loginButton = document.getElementById('login-button');
-
-function getStoredSession() {
-    try {
-        return JSON.parse(sessionStorage.getItem('geoportal-auth') || 'null');
-    } catch (e) {
-        return null;
-    }
-}
-
-function showLoginError(message) {
-    if (loginMessage) {
-        loginMessage.textContent = message;
-    }
-}
-
-function setLoginPending(isPending) {
-    if (loginButton) {
-        loginButton.disabled = isPending;
-        loginButton.textContent = isPending ? 'Validando…' : 'Ingresar';
-    }
-}
-
-function unlockGeoportal(userData) {
-    if (loginOverlay) {
-        loginOverlay.classList.add('hidden');
-    }
-    try {
-        sessionStorage.setItem('geoportal-auth', JSON.stringify({
-            user: userData.user,
-            role: userData.role,
-            expiresAt: Date.now() + 1000 * 60 * 60 * 8
-        }));
-    } catch (e) {}
-}
-
-function requireLogin() {
-    var session = getStoredSession();
-    if (session && session.expiresAt && session.expiresAt > Date.now()) {
-        unlockGeoportal({ user: session.user, role: session.role });
-        return;
-    }
-    try { sessionStorage.removeItem('geoportal-auth'); } catch (e) {}
-    if (loginOverlay) {
-        loginOverlay.classList.remove('hidden');
-    }
-}
-
-if (loginForm) {
-    loginForm.addEventListener('submit', function (event) {
-        event.preventDefault();
-        var userInput = document.getElementById('login-user').value.trim();
-        var passInput = document.getElementById('login-pass').value;
-        setLoginPending(true);
-        showLoginError('');
-
-        fetch(window.AUTH_API_URL || 'https://tu-auth-service.example.com/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user: userInput, password: passInput })
-        })
-        .then(function(response) {
-            return response.json().then(function(data) {
-                if (!response.ok) {
-                    throw new Error(data.message || 'Credenciales inválidas');
-                }
-                return data;
-            });
-        })
-        .then(function(data) {
-            showLoginError('');
-            unlockGeoportal({ user: userInput, role: data.role });
-        })
-        .catch(function(error) {
-            showLoginError(error.message || 'Usuario o contraseña incorrectos. Intenta de nuevo o recarga la página con Ctrl+F5.');
-        })
-        .finally(function() {
-            setLoginPending(false);
-        });
-    });
-}
-
-requireLogin();
 
 /* ─── LOADING ─── */
 window.addEventListener('load', () => {
