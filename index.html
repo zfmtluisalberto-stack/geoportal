@@ -578,6 +578,10 @@
             width: 100%; border: none; border-radius: 8px; padding: 10px 12px; margin-top: 6px;
             background: linear-gradient(90deg, var(--tide), var(--accent)); color: #fff; font-weight: 700; cursor: pointer;
         }
+        #login-button:disabled {
+            opacity: 0.7;
+            cursor: wait;
+        }
         #login-message {
             margin-top: 10px; font-size: 11px; color: #ffb4b4; min-height: 14px;
         }
@@ -828,6 +832,7 @@
 var loginOverlay = document.getElementById('login-overlay');
 var loginForm = document.getElementById('login-form');
 var loginMessage = document.getElementById('login-message');
+var loginButton = document.getElementById('login-button');
 
 function getStoredSession() {
     try {
@@ -840,6 +845,13 @@ function getStoredSession() {
 function showLoginError(message) {
     if (loginMessage) {
         loginMessage.textContent = message;
+    }
+}
+
+function setLoginPending(isPending) {
+    if (loginButton) {
+        loginButton.disabled = isPending;
+        loginButton.textContent = isPending ? 'Validando…' : 'Ingresar';
     }
 }
 
@@ -873,6 +885,8 @@ if (loginForm) {
         event.preventDefault();
         var userInput = document.getElementById('login-user').value.trim();
         var passInput = document.getElementById('login-pass').value;
+        setLoginPending(true);
+        showLoginError('');
 
         fetch(window.AUTH_API_URL || 'https://tu-auth-service.example.com/login', {
             method: 'POST',
@@ -893,6 +907,9 @@ if (loginForm) {
         })
         .catch(function(error) {
             showLoginError(error.message || 'Usuario o contraseña incorrectos. Intenta de nuevo o recarga la página con Ctrl+F5.');
+        })
+        .finally(function() {
+            setLoginPending(false);
         });
     });
 }
