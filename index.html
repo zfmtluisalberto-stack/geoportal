@@ -894,6 +894,7 @@
             .then(function(data) {
                 showLoginError('');
                 unlockGeoportal({ user: userInput, role: data.role });
+                hideLoadingScreen();
             })
             .catch(function(error) {
                 showLoginError(error.message || 'Usuario o contraseña incorrectos. Intenta de nuevo o recarga la página con Ctrl+F5.');
@@ -931,9 +932,18 @@
 <script src="data/ZonificacinCuadricula_Estrategica_11.js"></script>
 
 /* ─── LOADING ─── */
+function hideLoadingScreen() {
+    var loading = document.getElementById('loading');
+    if (loading) {
+        loading.classList.add('done');
+    }
+}
+
 window.addEventListener('load', () => {
-    setTimeout(() => document.getElementById('loading').classList.add('done'), 1900);
+    setTimeout(hideLoadingScreen, 600);
 });
+
+window.hideLoadingScreen = hideLoadingScreen;
 
 /* ─── MAP INIT ─── */
 var map = L.map('map', {
